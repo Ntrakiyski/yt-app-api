@@ -1,0 +1,267 @@
+# FastAPI YouTube Audio Transcription Service - Product Requirements Document
+
+<context>
+# Overview  
+This project is a FastAPI-based web service that provides YouTube audio transcription capabilities. The service downloads YouTube audio, transcribes it using OpenAI's open-source Whisper model, and provides timestamped transcripts with clickable YouTube links. The goal is to create a scalable, well-documented REST API that serves as a comprehensive audio transcription solution for accessibility, content analysis, and educational purposes.
+
+# Core Features  
+## Basic API Endpoint
+- Simple `/api` endpoint that returns a JSON greeting message
+- Fast, async response handling using FastAPI
+- Automatic OpenAPI documentation generation
+
+## YouTube Audio Processing
+- Download audio from YouTube videos using yt-dlp
+- Extract high-quality audio streams for transcription
+- Support for various YouTube URL formats (youtube.com, youtu.be, etc.)
+- Handle playlist URLs and extract individual videos
+
+## Audio Transcription
+- Transcribe audio using OpenAI's open-source Whisper model
+- Support multiple Whisper model sizes (tiny, base, small, medium, large)
+- Generate timestamped transcripts with word-level precision
+- Segment transcripts into 8-second chunks for better navigation
+
+## YouTube Metadata Extraction
+- Extract video title, description, duration, and channel information
+- Get video thumbnail URLs and publication date
+- Retrieve view count, like count, and other engagement metrics
+- Extract video tags and category information
+
+## Timestamped Navigation
+- Generate clickable YouTube links with timestamp parameters
+- Create deep links that jump to specific seconds in the video
+- Provide segment-based navigation for easy content browsing
+- Support both individual timestamps and segment ranges
+
+## Documentation and Testing
+- Interactive API documentation via Swagger UI at `/docs`
+- Alternative documentation via ReDoc at `/redoc`
+- Comprehensive README with setup instructions and API examples
+</context>
+
+<PRD>
+# Technical Architecture  
+## System Components
+- FastAPI framework for the web service layer
+- yt-dlp for YouTube video/audio downloading
+- OpenAI Whisper for audio transcription
+- FFmpeg for audio format conversion and processing
+- Uvicorn ASGI server for production deployment
+- Python 3.8+ runtime environment
+- JSON response format for API communication
+
+## Data Models
+### Video Information Model
+- video_id: YouTube video identifier
+- title: Video title
+- description: Video description
+- duration: Video duration in seconds
+- channel_name: Channel name
+- channel_id: Channel identifier
+- publish_date: Video publication date
+- view_count: Number of views
+- thumbnail_url: Video thumbnail URL
+
+### Transcript Segment Model
+- segment_id: Unique segment identifier
+- start_time: Segment start time in seconds
+- end_time: Segment end time in seconds
+- text: Transcribed text content
+- confidence: Transcription confidence score
+- youtube_link: Direct link to video at specific timestamp
+
+### Transcription Response Model
+- video_info: Complete video metadata
+- transcript_segments: Array of 8-second transcript segments
+- full_transcript: Complete transcription text
+- processing_time: Time taken for transcription
+- whisper_model_used: Which Whisper model was used
+
+## APIs and Integrations
+### Core Endpoints
+- GET `/api` - Basic health check endpoint
+- POST `/transcribe` - Main transcription endpoint
+- GET `/video-info/{video_id}` - Get YouTube video metadata
+- GET `/health` - Service health check
+- GET `/models` - List available Whisper models
+
+### YouTube Integration
+- yt-dlp integration for video downloading
+- Support for YouTube URL parsing and validation
+- Audio extraction in multiple formats (mp3, wav, m4a)
+- Metadata extraction using YouTube API-like functionality
+
+### Whisper Integration
+- Local Whisper model loading and management
+- Configurable model selection (tiny to large)
+- Batch processing capabilities for longer videos
+- GPU acceleration support when available
+
+## Infrastructure Requirements
+- Python 3.8+ environment with pip
+- FFmpeg installed for audio processing
+- Sufficient disk space for temporary audio files
+- GPU support optional but recommended for large Whisper models
+- Port 8000 for local development
+- Memory requirements vary by Whisper model size
+
+# Development Roadmap  
+## Phase 1: Core API Foundation (MVP)
+- Basic FastAPI application setup
+- Single `/api` endpoint with "Hello" response
+- Dependencies management with requirements.txt
+- Local development server configuration
+- Basic documentation in README
+
+## Phase 2: YouTube Integration
+- yt-dlp integration for video downloading
+- YouTube URL validation and parsing
+- Audio extraction functionality
+- Basic video metadata retrieval
+- Error handling for invalid URLs
+
+## Phase 3: Whisper Transcription
+- OpenAI Whisper integration
+- Audio transcription with timestamps
+- Multiple model size support
+- Basic transcription endpoint implementation
+- Confidence scoring for transcriptions
+
+## Phase 4: Segment Processing
+- 8-second segment division algorithm
+- Timestamp-based YouTube link generation
+- Segment-based response formatting
+- Navigation-friendly JSON structure
+- Clickable link generation with proper URL encoding
+
+## Phase 5: Enhanced Features
+- Additional API endpoints (health check, model info)
+- Request/response logging
+- Error handling and validation
+- Environment-based configuration
+- API versioning structure
+- Batch processing for multiple videos
+
+## Phase 6: Production Readiness
+- Docker containerization
+- Environment variables configuration
+- Production ASGI server setup
+- Basic security headers
+- API rate limiting
+- Comprehensive testing suite
+- Performance optimization
+
+## Phase 7: Advanced Features
+- Database integration for caching transcriptions
+- User authentication and API key management
+- Webhook support for long-running transcriptions
+- Response caching for frequently requested videos
+- Monitoring and metrics endpoints
+- Support for other video platforms
+
+# Logical Dependency Chain
+## Foundation First (Phase 1)
+- FastAPI application setup must come first
+- Basic endpoint implementation to validate the framework
+- Documentation and dependency management for reproducible setup
+
+## YouTube Integration (Phase 2)
+- yt-dlp setup and YouTube URL handling
+- Audio extraction before transcription can begin
+- Metadata extraction for complete video information
+
+## Transcription Core (Phase 3)
+- Whisper model integration builds on audio extraction
+- Basic transcription functionality required before segmentation
+- Model management and selection capabilities
+
+## Segment Navigation (Phase 4)
+- Segmentation requires working transcription
+- YouTube link generation depends on both metadata and segments
+- Navigation features build on complete transcription pipeline
+
+## Production Features (Phases 5-7)
+- Enhanced features build on stable transcription pipeline
+- Production readiness requires all core functionality
+- Advanced features add value to working system
+
+# Risks and Mitigations  
+## Technical Challenges
+- **Risk**: YouTube blocking or rate limiting
+- **Mitigation**: Implement proper delays, user-agent rotation, and error handling
+
+- **Risk**: Large audio files causing memory issues
+- **Mitigation**: Stream processing, temporary file cleanup, and chunked processing
+
+- **Risk**: Whisper model size vs. performance trade-offs
+- **Mitigation**: Allow model selection, provide performance guidance, and implement caching
+
+## Legal and Compliance
+- **Risk**: Copyright concerns with YouTube content
+- **Mitigation**: Focus on accessibility use cases, add usage guidelines, and implement rate limiting
+
+- **Risk**: YouTube Terms of Service compliance
+- **Mitigation**: Use official APIs where possible, respect robots.txt, and implement proper attribution
+
+## Performance and Scalability
+- **Risk**: Long transcription times for large videos
+- **Mitigation**: Implement async processing, progress tracking, and webhook notifications
+
+- **Risk**: Storage requirements for audio files
+- **Mitigation**: Implement cleanup routines, temporary file management, and optional cloud storage
+
+# Appendix  
+## Current Implementation Status
+- ✅ Basic FastAPI application (`main.py`)
+- ✅ Dependencies specification (`requirements.txt`)
+- ✅ Setup documentation (`README.md`)
+- ✅ Single `/api` endpoint returning JSON
+
+## Required Dependencies
+### Core Dependencies
+- fastapi: Web framework
+- uvicorn: ASGI server
+- yt-dlp: YouTube downloading
+- openai-whisper: Audio transcription
+- ffmpeg-python: Audio processing
+
+### Additional Dependencies
+- pydantic: Data validation
+- python-multipart: File upload support
+- aiofiles: Async file operations
+- httpx: HTTP client for API calls
+
+## Technical Specifications
+- Python FastAPI framework
+- OpenAI Whisper (open source)
+- yt-dlp for YouTube integration
+- FFmpeg for audio processing
+- JSON API responses with structured data
+- Async processing for long-running operations
+- RESTful API design following OpenAPI 3.0 specification
+
+## API Response Examples
+### Transcription Response
+```json
+{
+  "video_info": {
+    "video_id": "dQw4w9WgXcQ",
+    "title": "Example Video",
+    "duration": 240,
+    "channel_name": "Example Channel"
+  },
+  "transcript_segments": [
+    {
+      "segment_id": 1,
+      "start_time": 0,
+      "end_time": 8,
+      "text": "Welcome to this video...",
+      "youtube_link": "https://youtube.com/watch?v=dQw4w9WgXcQ&t=0s"
+    }
+  ],
+  "processing_time": 45.2,
+  "whisper_model_used": "base"
+}
+```
+</PRD> 
