@@ -28,7 +28,7 @@ RUN mkdir -p /tmp/youtube_audio
 RUN python -c "import whisper; print('Downloading small model...'); whisper.load_model('small'); print('Downloading medium model...'); whisper.load_model('medium'); print('Downloading large model...'); whisper.load_model('large'); print('All models downloaded successfully!')"
 
 # Expose ports for both services
-EXPOSE 8000 8501
+EXPOSE 8501 8555
 
 # Health check for Streamlit frontend
 HEALTHCHECK --interval=30s --timeout=30s --start-period=10s --retries=3 \

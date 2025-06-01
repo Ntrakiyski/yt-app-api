@@ -54,7 +54,7 @@ python main.py
 ```bash
 python run_app.py
 ```
-This starts both the FastAPI backend (port 8000) and Streamlit frontend (port 8501).
+This starts both the FastAPI backend (port 8555) and Streamlit frontend (port 8501).
 
 **Manual Launch:**
 ```bash
@@ -67,18 +67,18 @@ streamlit run streamlit_app.py
 
 **Access the Applications:**
 - 🎨 **Streamlit UI**: http://localhost:8501 (User-friendly interface)
-- 🌐 **API Documentation**: http://localhost:8000/docs (Developer interface)
+- 🌐 **API Documentation**: http://localhost:8555/docs (Developer interface)
 
 ### Production Server (API only)
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 8555
 ```
 
 ### Using Uvicorn directly (with hot reload)
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn main:app --host 0.0.0.0 --port 8555 --reload
 ```
 
 ## Docker Deployment
@@ -96,7 +96,7 @@ docker-compose up --build
 docker build -t youtube-transcriber .
 
 # Run the container (both services)
-docker run -p 8501:8501 -p 8000:8000 youtube-transcriber
+docker run -p 8501:8501 -p 8555:8555 youtube-transcriber
 ```
 
 ### Production Deployment (Coolify)
@@ -105,7 +105,7 @@ The application is ready for deployment on **Coolify** or any Docker-based platf
 
 1. **Dockerfile**: Production-ready with both frontend and backend
 2. **Primary Interface**: Streamlit UI on port 8501 (user-friendly)
-3. **API Backend**: FastAPI on port 8000 (developer access)
+3. **API Backend**: FastAPI on port 8555 (developer access)
 4. **Health checks**: Built-in monitoring for Streamlit frontend
 5. **Auto-cleanup**: Manages temporary files automatically
 
@@ -118,13 +118,13 @@ The application is ready for deployment on **Coolify** or any Docker-based platf
 
 **Access Points:**
 - **🎨 Main Interface**: `https://your-domain.com` (Streamlit UI)
-- **📖 API Docs**: `https://your-domain.com:8000/docs` (if port 8000 exposed)
+- **📖 API Docs**: `https://your-domain.com:8555/docs` (if port 8555 exposed)
 
 ### Docker Features
 
 - ✅ **Dual-service deployment** (Streamlit + FastAPI)
 - ✅ **User-friendly frontend** on port 8501
-- ✅ **Developer API access** on port 8000
+- ✅ **Developer API access** on port 8555
 - ✅ **FFmpeg and system dependencies included**
 - ✅ **Pre-loaded Whisper models** (small, medium, large)
 - ✅ **Health checks configured**
@@ -145,13 +145,13 @@ The application is ready for deployment on **Coolify** or any Docker-based platf
 
 **Access:** `http://localhost:8501` (Development) or `https://your-domain.com` (Production)
 
-### 🔌 FastAPI Backend (Port 8000)
+### 🔌 FastAPI Backend (Port 8555)
 
 **Developer API access:**
 
 ## API Endpoints
 
-Once running, your API will be available at http://localhost:8000
+Once running, your API will be available at http://localhost:8555
 
 ### Core Endpoints
 
@@ -169,15 +169,15 @@ Once running, your API will be available at http://localhost:8000
 
 ### Interactive Documentation
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **Swagger UI**: http://localhost:8555/docs
+- **ReDoc**: http://localhost:8555/redoc
 
 ## Usage Examples
 
 ### Basic Transcription
 
 ```bash
-curl -X POST "http://localhost:8000/transcribe" \
+curl -X POST "http://localhost:8555/transcribe" \
      -H "Content-Type: application/json" \
      -d '{
        "url": "https://youtu.be/dQw4w9WgXcQ",
@@ -189,7 +189,7 @@ curl -X POST "http://localhost:8000/transcribe" \
 ### Get Video Information
 
 ```bash
-curl -X POST "http://localhost:8000/video-info" \
+curl -X POST "http://localhost:8555/video-info" \
      -H "Content-Type: application/json" \
      -d '{"url": "https://youtu.be/dQw4w9WgXcQ"}'
 ```
@@ -197,7 +197,7 @@ curl -X POST "http://localhost:8000/video-info" \
 ### Check Available Models
 
 ```bash
-curl "http://localhost:8000/models"
+curl "http://localhost:8555/models"
 ```
 
 ## Response Format

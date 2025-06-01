@@ -15,7 +15,7 @@ st.set_page_config(
 )
 
 # API Configuration
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "http://localhost:8555"
 
 def check_api_health() -> bool:
     """Check if the API is running and healthy."""
@@ -178,7 +178,7 @@ def main():
             st.success("✅ API is running")
         else:
             st.error("❌ API not available")
-            st.info("Make sure the FastAPI server is running on http://localhost:8000")
+            st.info("Make sure the FastAPI server is running on http://localhost:8555")
             st.stop()
         
         # Get available models

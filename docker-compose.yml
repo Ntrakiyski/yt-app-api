@@ -5,7 +5,7 @@ services:
     build: .
     ports:
       - "8501:8501"  # Streamlit UI (Primary)
-      - "8000:8000"  # FastAPI Backend
+      - "8555:8555"  # FastAPI Backend
     environment:
       - PYTHONUNBUFFERED=1
     volumes:

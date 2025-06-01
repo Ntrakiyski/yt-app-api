@@ -30,12 +30,12 @@ def signal_handler(sig, frame):
 
 def run_fastapi():
     """Run the FastAPI server."""
-    print("🚀 Starting FastAPI server on http://0.0.0.0:8000")
+    print("🚀 Starting FastAPI server on http://0.0.0.0:8555")
     try:
         process = subprocess.Popen([
             sys.executable, "-m", "uvicorn", "main:app",
             "--host", "0.0.0.0",
-            "--port", "8000",
+            "--port", "8555",
             "--workers", "1"
         ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         processes.append(process)
@@ -113,7 +113,7 @@ def main():
     
     print("🔧 Starting production servers...")
     print("🌐 Frontend: http://0.0.0.0:8501 (Streamlit UI)")
-    print("🔌 Backend: http://0.0.0.0:8000 (FastAPI)")
+    print("🔌 Backend: http://0.0.0.0:8555 (FastAPI)")
     print("-" * 50)
     
     # Start FastAPI in a separate thread
@@ -133,8 +133,8 @@ def main():
     print("\n" + "=" * 50)
     print("✅ Both servers are running!")
     print("🎨 Primary UI: http://0.0.0.0:8501 (User Interface)")
-    print("📖 API Docs: http://0.0.0.0:8000/docs (Developer Interface)")
-    print("💾 Health Check: http://0.0.0.0:8000/health")
+    print("📖 API Docs: http://0.0.0.0:8555/docs (Developer Interface)")
+    print("💾 Health Check: http://0.0.0.0:8555/health")
     print("=" * 50)
     
     # Keep the main thread alive
