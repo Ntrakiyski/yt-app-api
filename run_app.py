@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Launch script for YouTube Transcription AI
-Starts both FastAPI backend and Streamlit UI together for production deployment
+Creates a reverse proxy to serve both Streamlit UI and FastAPI on port 8501
 """
 
 import subprocess
@@ -11,6 +11,11 @@ import threading
 import signal
 import os
 from pathlib import Path
+import asyncio
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+import uvicorn
+import httpx
 
 # Global process list to track subprocesses
 processes = []
@@ -29,7 +34,7 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 def run_fastapi():
-    """Run the FastAPI server."""
+    """Run the FastAPI server on port 8555."""
     print("🚀 Starting FastAPI server on http://0.0.0.0:8555")
     try:
         process = subprocess.Popen([
@@ -38,119 +43,126 @@ def run_fastapi():
             "--port", "8555",
             "--workers", "1"
         ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        
         processes.append(process)
         
         # Stream output
         for line in iter(process.stdout.readline, ''):
             if line:
-                print(f"[API] {line.rstrip()}")
+                print(f"[FastAPI] {line.strip()}")
         
+        process.wait()
     except Exception as e:
-        print(f"❌ Error starting FastAPI: {e}")
+        print(f"❌ FastAPI server error: {e}")
 
 def run_streamlit():
-    """Run the Streamlit UI."""
-    print("🎨 Starting Streamlit UI on http://0.0.0.0:8501")
+    """Run the Streamlit server on port 8502."""
+    print("🎨 Starting Streamlit server on http://0.0.0.0:8502")
     try:
         process = subprocess.Popen([
             sys.executable, "-m", "streamlit", "run", "streamlit_app.py",
-            "--server.port", "8501",
+            "--server.port", "8502",
             "--server.address", "0.0.0.0",
             "--server.headless", "true",
             "--server.enableCORS", "false",
             "--server.enableXsrfProtection", "false",
             "--browser.gatherUsageStats", "false"
         ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        
         processes.append(process)
         
         # Stream output
         for line in iter(process.stdout.readline, ''):
             if line:
-                print(f"[UI] {line.rstrip()}")
-                
+                print(f"[Streamlit] {line.strip()}")
+        
+        process.wait()
     except Exception as e:
-        print(f"❌ Error starting Streamlit: {e}")
+        print(f"❌ Streamlit server error: {e}")
 
-def check_dependencies():
-    """Check if required dependencies are installed."""
-    required_packages = ['fastapi', 'streamlit', 'uvicorn']
-    missing = []
+# Create reverse proxy app
+proxy_app = FastAPI(title="YouTube Transcription Proxy")
+
+@proxy_app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def proxy_api(request: Request, path: str):
+    """Proxy API requests to FastAPI server."""
+    url = f"http://localhost:8555/api/{path}"
     
-    for package in required_packages:
-        try:
-            __import__(package)
-        except ImportError:
-            missing.append(package)
+    async with httpx.AsyncClient() as client:
+        # Forward the request
+        response = await client.request(
+            method=request.method,
+            url=url,
+            headers=dict(request.headers),
+            content=await request.body(),
+            params=request.query_params
+        )
+        
+        # Return the response
+        return StreamingResponse(
+            iter([response.content]),
+            status_code=response.status_code,
+            headers=dict(response.headers),
+            media_type=response.headers.get("content-type")
+        )
+
+@proxy_app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def proxy_streamlit(request: Request, path: str = ""):
+    """Proxy all other requests to Streamlit server."""
+    url = f"http://localhost:8502/{path}"
     
-    if missing:
-        print(f"❌ Missing required packages: {', '.join(missing)}")
-        print("📦 Please install dependencies: pip install -r requirements.txt")
-        return False
-    
-    return True
+    async with httpx.AsyncClient() as client:
+        # Forward the request
+        response = await client.request(
+            method=request.method,
+            url=url,
+            headers=dict(request.headers),
+            content=await request.body(),
+            params=request.query_params
+        )
+        
+        # Return the response
+        return StreamingResponse(
+            iter([response.content]),
+            status_code=response.status_code,
+            headers=dict(response.headers),
+            media_type=response.headers.get("content-type")
+        )
+
+def run_proxy():
+    """Run the reverse proxy server on port 8501."""
+    print("🔄 Starting reverse proxy on http://0.0.0.0:8501")
+    uvicorn.run(proxy_app, host="0.0.0.0", port=8501, log_level="info")
 
 def main():
-    """Main function to start both servers."""
-    print("🎵 YouTube Transcription AI - Production Launch")
-    print("=" * 50)
-    
-    # Check dependencies
-    if not check_dependencies():
-        sys.exit(1)
-    
-    # Check if files exist
-    if not Path("main.py").exists():
-        print("❌ main.py not found!")
-        sys.exit(1)
-    
-    if not Path("streamlit_app.py").exists():
-        print("❌ streamlit_app.py not found!")
-        sys.exit(1)
-    
-    # Set up signal handlers for graceful shutdown
+    """Main function to start all services."""
+    # Set up signal handlers
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    print("🔧 Starting production servers...")
-    print("🌐 Frontend: http://0.0.0.0:8501 (Streamlit UI)")
-    print("🔌 Backend: http://0.0.0.0:8555 (FastAPI)")
-    print("-" * 50)
+    print("🎵 Starting YouTube Transcription AI")
+    print("=" * 50)
     
-    # Start FastAPI in a separate thread
+    # Start FastAPI in a thread
     fastapi_thread = threading.Thread(target=run_fastapi, daemon=True)
     fastapi_thread.start()
     
-    # Wait a bit for FastAPI to start
-    time.sleep(3)
-    
-    # Start Streamlit in a separate thread
+    # Start Streamlit in a thread
     streamlit_thread = threading.Thread(target=run_streamlit, daemon=True)
     streamlit_thread.start()
     
-    # Wait for Streamlit to start
-    time.sleep(8)
+    # Wait a moment for services to start
+    time.sleep(5)
     
-    print("\n" + "=" * 50)
-    print("✅ Both servers are running!")
-    print("🎨 Primary UI: http://0.0.0.0:8501 (User Interface)")
-    print("📖 API Docs: http://0.0.0.0:8555/docs (Developer Interface)")
-    print("💾 Health Check: http://0.0.0.0:8555/health")
+    print("\n🌐 Services starting...")
+    print("📱 Frontend: http://localhost:8501")
+    print("🔧 API: http://localhost:8501/api/docs")
+    print("💡 Press Ctrl+C to stop all services")
     print("=" * 50)
     
-    # Keep the main thread alive
+    # Run the proxy (this blocks)
     try:
-        while True:
-            time.sleep(1)
-            # Check if processes are still alive
-            for process in processes[:]:  # Create a copy to iterate
-                if process.poll() is not None:  # Process has terminated
-                    print(f"⚠️ Process {process.pid} terminated unexpectedly")
-                    processes.remove(process)
-            
-            if not processes:  # All processes have died
-                print("❌ All servers have stopped unexpectedly")
-                break
-                
+        run_proxy()
     except KeyboardInterrupt:
         signal_handler(signal.SIGINT, None)
 

@@ -4,10 +4,10 @@ services:
   youtube-transcriber:
     build: .
     ports:
-      - "8501:8501"  # Streamlit UI (Primary)
-      - "8555:8555"  # FastAPI Backend
+      - "8501:8501"  # Streamlit UI (Primary) - API accessible at /api/*
     environment:
       - PYTHONUNBUFFERED=1
+      - ENVIRONMENT=production
     volumes:
       # Optional: Mount a volume for persistent temporary files (if needed)
       - /tmp/youtube_audio:/tmp/youtube_audio

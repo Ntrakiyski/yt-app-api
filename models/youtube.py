@@ -2,6 +2,40 @@ from pydantic import BaseModel, HttpUrl, validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
+class VideoInfoRequest(BaseModel):
+    """Request model for video info operations."""
+    url: str
+    
+    @validator('url')
+    def validate_youtube_url(cls, v):
+        """Basic validation for YouTube URL format."""
+        if not v:
+            raise ValueError('URL is required')
+        
+        # Basic check for YouTube domains
+        youtube_domains = ['youtube.com', 'youtu.be', 'youtube.co.uk', 'm.youtube.com']
+        if not any(domain in v.lower() for domain in youtube_domains):
+            raise ValueError('URL must be a valid YouTube URL')
+        
+        return v
+
+class AudioDownloadRequest(BaseModel):
+    """Request model for audio download operations."""
+    url: str
+    
+    @validator('url')
+    def validate_youtube_url(cls, v):
+        """Basic validation for YouTube URL format."""
+        if not v:
+            raise ValueError('URL is required')
+        
+        # Basic check for YouTube domains
+        youtube_domains = ['youtube.com', 'youtu.be', 'youtube.co.uk', 'm.youtube.com']
+        if not any(domain in v.lower() for domain in youtube_domains):
+            raise ValueError('URL must be a valid YouTube URL')
+        
+        return v
+
 class YouTubeURLRequest(BaseModel):
     """Request model for YouTube URL operations."""
     url: str
@@ -34,16 +68,15 @@ class VideoInfo(BaseModel):
 class AudioDownloadResponse(BaseModel):
     """Response model for audio download operations."""
     success: bool
-    video_id: Optional[str] = None
-    audio_file_path: Optional[str] = None
-    file_size: Optional[int] = None
-    video_info: Optional[Dict[str, Any]] = None
+    audio_file: Optional[str] = None
+    message: Optional[str] = None
     error: Optional[str] = None
 
 class VideoInfoResponse(BaseModel):
     """Response model for video info operations."""
     success: bool
     video_info: Optional[Dict[str, Any]] = None
+    message: Optional[str] = None
     error: Optional[str] = None
 
 class TranscriptSegment(BaseModel):
@@ -58,8 +91,7 @@ class TranscriptSegment(BaseModel):
 class TranscriptionRequest(BaseModel):
     """Request model for transcription operations."""
     url: str
-    whisper_model: Optional[str] = "base"  # tiny, base, small, medium, large
-    segment_duration: Optional[int] = 8  # seconds
+    model: Optional[str] = "small"  # tiny, base, small, medium, large
     
     @validator('url')
     def validate_youtube_url(cls, v):
@@ -73,30 +105,21 @@ class TranscriptionRequest(BaseModel):
         
         return v
     
-    @validator('whisper_model')
+    @validator('model')
     def validate_whisper_model(cls, v):
         """Validate Whisper model selection."""
         valid_models = ['tiny', 'base', 'small', 'medium', 'large']
         if v not in valid_models:
-            raise ValueError(f'whisper_model must be one of: {", ".join(valid_models)}')
-        return v
-    
-    @validator('segment_duration')
-    def validate_segment_duration(cls, v):
-        """Validate segment duration."""
-        if v < 1 or v > 60:
-            raise ValueError('segment_duration must be between 1 and 60 seconds')
+            raise ValueError(f'model must be one of: {", ".join(valid_models)}')
         return v
 
 class TranscriptionResponse(BaseModel):
     """Response model for transcription operations."""
     success: bool
-    video_info: Optional[Dict[str, Any]] = None
-    transcript_segments: Optional[List[TranscriptSegment]] = None
-    full_transcript: Optional[str] = None
+    transcript: Optional[Dict[str, Any]] = None
+    segments: Optional[List[Dict[str, Any]]] = None
     processing_time: Optional[float] = None
-    whisper_model_used: Optional[str] = None
-    total_segments: Optional[int] = None
+    message: Optional[str] = None
     error: Optional[str] = None
 
 class WhisperModel(BaseModel):
@@ -115,4 +138,19 @@ class WhisperModelsResponse(BaseModel):
     models: Optional[List[WhisperModel]] = None
     current_model: Optional[str] = None
     device: Optional[str] = None
-    error: Optional[str] = None 
+    error: Optional[str] = None
+
+class ModelsResponse(BaseModel):
+    """Response model for available models."""
+    success: bool
+    models: Optional[List[WhisperModel]] = None
+    current_model: Optional[str] = None
+    message: Optional[str] = None
+    error: Optional[str] = None
+
+class HealthResponse(BaseModel):
+    """Response model for health check."""
+    status: str
+    message: Optional[str] = None
+    timestamp: Optional[float] = None
+    services: Optional[Dict[str, Any]] = None 

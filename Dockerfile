@@ -23,6 +23,10 @@ COPY . .
 # Create directory for temporary audio files
 RUN mkdir -p /tmp/youtube_audio
 
+# Set environment variables for production
+ENV ENVIRONMENT=production
+ENV PYTHONUNBUFFERED=1
+
 # Pre-download Whisper models for production use (small, medium, large)
 # This adds ~1.1GB to the image but eliminates first-use delays
 RUN python -c "import whisper; print('Downloading small model...'); whisper.load_model('small'); print('Downloading medium model...'); whisper.load_model('medium'); print('Downloading large model...'); whisper.load_model('large'); print('All models downloaded successfully!')"

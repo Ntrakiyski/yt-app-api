@@ -109,27 +109,72 @@ The application is ready for deployment on **Coolify** or any Docker-based platf
 4. **Health checks**: Built-in monitoring for Streamlit frontend
 5. **Auto-cleanup**: Manages temporary files automatically
 
+## 🚀 Deployment
+
+### Coolify Deployment (Recommended)
+
 **For Coolify deployment:**
 - **Repository**: Push to GitHub/GitLab
 - **Build Pack**: Dockerfile (auto-detected)
-- **Primary Port**: `8501` (Streamlit UI)
-- **Port Mapping**: `8501:8501`
+- **Primary Port**: `8501` (Single port for everything)
+- **Port Mapping**: `8501:8501` (only expose this port)
 - **Health Check**: `/_stcore/health` endpoint
+- **Environment Variables**: Set `ENVIRONMENT=production`
 
 **Access Points:**
 - **🎨 Main Interface**: `https://your-domain.com` (Streamlit UI)
-- **📖 API Docs**: `https://your-domain.com:8555/docs` (if port 8555 exposed)
+- **📖 API Docs**: `https://your-domain.com/api/docs` (FastAPI documentation)
+- **🔧 API Endpoints**: `https://your-domain.com/api/*` (All API calls)
+- **💚 Health Check**: `https://your-domain.com/_stcore/health`
+
+**Single Port Architecture:**
+- ✅ **Simplified Configuration**: Only one port to expose in Coolify
+- ✅ **Same Domain Access**: Frontend and API on same URL
+- ✅ **No CORS Issues**: No cross-origin requests needed
+- ✅ **Easier SSL**: Single certificate covers everything
+- ✅ **Reverse Proxy**: Automatically routes `/api/*` to FastAPI, everything else to Streamlit
+
+**Deployment Steps:**
+1. Push your code to GitHub/GitLab
+2. Create new application in Coolify
+3. Set repository URL
+4. Set port to `8501`
+5. Add environment variable: `ENVIRONMENT=production`
+6. Deploy!
+
+### Local Development
+
+**Option 1: Reverse Proxy (Recommended)**
+```bash
+python run_app.py
+```
+- **Frontend**: http://localhost:8501
+- **API**: http://localhost:8501/api/docs
+- **Single port, production-like setup**
+
+**Option 2: Separate Services**
+```bash
+# Terminal 1 - FastAPI
+python main.py
+
+# Terminal 2 - Streamlit  
+streamlit run streamlit_app.py --server.port 8501
+```
+- **Frontend**: http://localhost:8501
+- **API**: http://localhost:8555/api/docs
 
 ### Docker Features
 
-- ✅ **Dual-service deployment** (Streamlit + FastAPI)
-- ✅ **User-friendly frontend** on port 8501
-- ✅ **Developer API access** on port 8555
+- ✅ **Single-port deployment** (Streamlit + FastAPI on port 8501)
+- ✅ **Reverse proxy architecture** for seamless routing
+- ✅ **User-friendly frontend** with modern UI
+- ✅ **Developer API access** at `/api/*` endpoints
 - ✅ **FFmpeg and system dependencies included**
 - ✅ **Pre-loaded Whisper models** (small, medium, large)
-- ✅ **Health checks configured**
+- ✅ **Health checks configured** for both services
 - ✅ **Automatic cleanup of temporary files**
 - ✅ **Zero startup delay** - models ready instantly
+- ✅ **Production-ready configuration**
 
 ## Application Interfaces
 

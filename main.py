@@ -1,7 +1,10 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
 import logging
 import time
+from contextlib import asynccontextmanager
+import uvicorn
 from services.youtube_audio import YouTubeAudioService
 from services.whisper_service import WhisperTranscriptionService
 from models.youtube import (
@@ -10,186 +13,195 @@ from models.youtube import (
     VideoInfoResponse,
     TranscriptionRequest,
     TranscriptionResponse,
-    WhisperModelsResponse
+    WhisperModelsResponse,
+    VideoInfoRequest,
+    AudioDownloadRequest,
+    ModelsResponse,
+    HealthResponse
 )
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Global services
+youtube_service = None
+whisper_service = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize services on startup"""
+    global youtube_service, whisper_service
+    
+    logger.info("Initializing services...")
+    youtube_service = YouTubeAudioService()
+    whisper_service = WhisperTranscriptionService()
+    
+    yield
+    
+    logger.info("Shutting down services...")
+
+# Create FastAPI app with a subpath for API
 app = FastAPI(
     title="YouTube Audio Transcription API",
-    description="A FastAPI service for downloading YouTube audio and generating timestamped transcripts using Whisper",
-    version="1.0.0"
+    description="Download YouTube audio and transcribe it using OpenAI Whisper",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json"
 )
 
-# Initialize services
-youtube_service = YouTubeAudioService()
-whisper_service = WhisperTranscriptionService()
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with your domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+async def redirect_to_docs():
+    """Redirect root to API docs for convenience"""
+    return RedirectResponse(url="/api/docs")
 
 @app.get("/api")
-def read_api():
-    """Basic API endpoint returning a greeting message."""
-    return {"message": "Hello"}
+async def root():
+    """Root endpoint that returns a simple greeting"""
+    return {"message": "Hello from YouTube Transcription API"}
 
-@app.get("/health")
+@app.get("/api/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint with service status."""
+    """Health check endpoint"""
     try:
-        # Check Whisper models availability
-        models_info = whisper_service.get_available_models()
-        
-        return {
-            "status": "healthy",
-            "service": "YouTube Audio Transcription API",
-            "version": "1.0.0",
-            "dependencies": {
-                "yt-dlp": "available",
-                "whisper": "available" if models_info["success"] else "error",
-                "ffmpeg": "available",  # TODO: Add actual FFmpeg check
-                "device": whisper_service.device
+        # Quick test of services
+        models = whisper_service.get_available_models()
+        return HealthResponse(
+            status="healthy",
+            message="All services operational",
+            timestamp=time.time(),
+            services={
+                "youtube_downloader": "operational",
+                "whisper_transcriber": "operational",
+                "available_models": len(models)
             }
-        }
+        )
     except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        raise HTTPException(status_code=503, detail="Service unhealthy")
+        logger.error(f"Health check failed: {e}")
+        return HealthResponse(
+            status="unhealthy",
+            message=f"Service error: {str(e)}",
+            timestamp=time.time(),
+            services={}
+        )
 
-@app.get("/version")
-async def version_info():
-    """Version information endpoint."""
-    return {
-        "version": "1.0.0",
-        "api_name": "YouTube Audio Transcription API",
-        "supported_models": ["tiny", "base", "small", "medium", "large"],
-        "features": [
-            "YouTube audio download",
-            "Whisper transcription",
-            "8-second segmentation",
-            "Timestamped navigation"
-        ],
-        "device": whisper_service.device
-    }
-
-@app.get("/models", response_model=WhisperModelsResponse)
-async def get_whisper_models():
-    """Get available Whisper models and their information."""
+@app.get("/api/models", response_model=ModelsResponse)
+async def get_models():
+    """Get available Whisper models and current default"""
     try:
-        result = whisper_service.get_available_models()
-        return WhisperModelsResponse(**result)
+        models = whisper_service.get_available_models()
+        current_model = whisper_service.current_model
+        
+        return ModelsResponse(
+            success=True,
+            models=models,
+            current_model=current_model,
+            message="Models retrieved successfully"
+        )
     except Exception as e:
-        logger.error(f"Error getting models: {str(e)}")
+        logger.error(f"Error getting models: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get models: {str(e)}")
 
-@app.post("/video-info", response_model=VideoInfoResponse)
-async def get_video_info(request: YouTubeURLRequest):
-    """Extract YouTube video metadata without downloading."""
+@app.post("/api/video-info", response_model=VideoInfoResponse)
+async def get_video_info(request: VideoInfoRequest):
+    """Get YouTube video information"""
     try:
         logger.info(f"Getting video info for: {request.url}")
-        result = youtube_service.get_video_info(request.url)
         
-        if not result["success"]:
-            raise HTTPException(status_code=400, detail=result["error"])
+        video_info = youtube_service.get_video_info(request.url)
         
         return VideoInfoResponse(
             success=True,
-            video_info=result
+            video_info=video_info,
+            message="Video information retrieved successfully"
         )
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error getting video info: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"Error getting video info: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get video info: {str(e)}")
 
-@app.post("/download-audio", response_model=AudioDownloadResponse)
-async def download_audio(request: YouTubeURLRequest, background_tasks: BackgroundTasks):
-    """Download audio from YouTube video."""
+@app.post("/api/download-audio", response_model=AudioDownloadResponse)
+async def download_audio(request: AudioDownloadRequest):
+    """Download audio from YouTube URL"""
     try:
         logger.info(f"Downloading audio for: {request.url}")
-        result = youtube_service.download_audio(request.url)
         
-        if not result["success"]:
-            raise HTTPException(status_code=400, detail=result["error"])
+        audio_file = youtube_service.download_audio(request.url)
         
-        return AudioDownloadResponse(**result)
-    except HTTPException:
-        raise
+        return AudioDownloadResponse(
+            success=True,
+            audio_file=audio_file,
+            message="Audio downloaded successfully"
+        )
     except Exception as e:
-        logger.error(f"Error downloading audio: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"Error downloading audio: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to download audio: {str(e)}")
 
-@app.post("/transcribe", response_model=TranscriptionResponse)
-async def transcribe_youtube_video(request: TranscriptionRequest, background_tasks: BackgroundTasks):
-    """Complete transcription pipeline: download YouTube audio, transcribe with Whisper, and create segments."""
+@app.post("/api/transcribe", response_model=TranscriptionResponse)
+async def transcribe_audio(request: TranscriptionRequest):
+    """Main endpoint: Download YouTube audio and transcribe it"""
     start_time = time.time()
     
     try:
         logger.info(f"Starting transcription for: {request.url}")
         
-        # Step 1: Get video info
-        video_info_result = youtube_service.get_video_info(request.url)
-        if not video_info_result["success"]:
-            raise HTTPException(status_code=400, detail=video_info_result["error"])
-        
-        # Step 2: Download audio
+        # Step 1: Download audio
         logger.info("Downloading audio...")
-        download_result = youtube_service.download_audio(request.url)
-        if not download_result["success"]:
-            raise HTTPException(status_code=400, detail=download_result["error"])
+        audio_file = youtube_service.download_audio(request.url)
         
-        audio_file_path = download_result["audio_file_path"]
+        # Step 2: Transcribe
+        logger.info(f"Transcribing with model: {request.model}")
+        transcript = whisper_service.transcribe_audio(audio_file, request.model)
         
-        # Step 3: Transcribe audio
-        logger.info(f"Transcribing with model: {request.whisper_model}")
-        transcription_result = whisper_service.transcribe_audio(
-            audio_file_path=audio_file_path,
-            model_name=request.whisper_model
-        )
-        
-        if not transcription_result["success"]:
-            # Clean up audio file before returning error
-            background_tasks.add_task(youtube_service.cleanup_file, audio_file_path)
-            raise HTTPException(status_code=500, detail=transcription_result["error"])
-        
-        # Step 4: Create 8-second segments
+        # Step 3: Create segments
         logger.info("Creating segments...")
-        segments = whisper_service.create_segments(
-            transcription_result, 
-            segment_duration=request.segment_duration
-        )
+        segments = []
+        segment_duration = 8.0  # 8 seconds per segment
         
-        # Step 5: Add YouTube timestamp links
-        segments_with_links = whisper_service.create_youtube_links(segments, request.url)
+        for i, segment in enumerate(transcript["segments"]):
+            # Calculate which 8-second segment this belongs to
+            segment_start = segment["start"]
+            segment_index = int(segment_start // segment_duration)
+            segment_timestamp = segment_index * segment_duration
+            
+            # Create YouTube link with timestamp
+            base_url = request.url.split('&')[0]  # Remove any existing parameters
+            youtube_link = f"{base_url}&t={int(segment_timestamp)}s"
+            
+            segments.append({
+                "id": segment_index,
+                "start_time": segment_timestamp,
+                "end_time": min(segment_timestamp + segment_duration, transcript.get("duration", segment_timestamp + segment_duration)),
+                "text": segment["text"].strip(),
+                "youtube_link": youtube_link
+            })
         
-        # Calculate total processing time
-        total_processing_time = time.time() - start_time
+        # Clean up audio file
+        youtube_service.cleanup_audio_file(audio_file)
         
-        # Schedule cleanup
-        background_tasks.add_task(youtube_service.cleanup_file, audio_file_path)
+        processing_time = time.time() - start_time
+        logger.info(f"Transcription completed in {processing_time:.2f} seconds")
         
-        # Build response
-        response = TranscriptionResponse(
+        return TranscriptionResponse(
             success=True,
-            video_info=video_info_result,
-            transcript_segments=segments_with_links,
-            full_transcript=transcription_result["text"],
-            processing_time=total_processing_time,
-            whisper_model_used=request.whisper_model,
-            total_segments=len(segments_with_links)
+            transcript=transcript,
+            segments=segments,
+            processing_time=processing_time,
+            message="Transcription completed successfully"
         )
         
-        logger.info(f"Transcription completed in {total_processing_time:.2f} seconds")
-        return response
-        
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error in transcription pipeline: {str(e)}")
-        # Try to cleanup if we have a file path
-        try:
-            if 'audio_file_path' in locals():
-                background_tasks.add_task(youtube_service.cleanup_file, audio_file_path)
-        except:
-            pass
+        logger.error(f"Transcription failed: {e}")
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
 @app.delete("/cleanup")
@@ -207,5 +219,4 @@ async def cleanup_files():
         raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8555) 
