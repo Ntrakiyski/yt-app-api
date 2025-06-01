@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Launch script for YouTube Transcription AI
-Starts both FastAPI backend and Streamlit UI together for easy development
+Starts both FastAPI backend and Streamlit UI together for production deployment
 """
 
 import subprocess
@@ -16,7 +16,7 @@ from pathlib import Path
 processes = []
 
 def signal_handler(sig, frame):
-    """Handle Ctrl+C to gracefully shutdown both processes."""
+    """Handle signals to gracefully shutdown both processes."""
     print("\n🛑 Shutting down servers...")
     for process in processes:
         if process.poll() is None:  # If process is still running
@@ -30,10 +30,13 @@ def signal_handler(sig, frame):
 
 def run_fastapi():
     """Run the FastAPI server."""
-    print("🚀 Starting FastAPI server on http://localhost:8000")
+    print("🚀 Starting FastAPI server on http://0.0.0.0:8000")
     try:
         process = subprocess.Popen([
-            sys.executable, "main.py"
+            sys.executable, "-m", "uvicorn", "main:app",
+            "--host", "0.0.0.0",
+            "--port", "8000",
+            "--workers", "1"
         ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         processes.append(process)
         
@@ -47,12 +50,15 @@ def run_fastapi():
 
 def run_streamlit():
     """Run the Streamlit UI."""
-    print("🎨 Starting Streamlit UI on http://localhost:8501")
+    print("🎨 Starting Streamlit UI on http://0.0.0.0:8501")
     try:
         process = subprocess.Popen([
             sys.executable, "-m", "streamlit", "run", "streamlit_app.py",
             "--server.port", "8501",
+            "--server.address", "0.0.0.0",
             "--server.headless", "true",
+            "--server.enableCORS", "false",
+            "--server.enableXsrfProtection", "false",
             "--browser.gatherUsageStats", "false"
         ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         processes.append(process)
@@ -85,7 +91,7 @@ def check_dependencies():
 
 def main():
     """Main function to start both servers."""
-    print("🎵 YouTube Transcription AI - Launch Script")
+    print("🎵 YouTube Transcription AI - Production Launch")
     print("=" * 50)
     
     # Check dependencies
@@ -101,12 +107,13 @@ def main():
         print("❌ streamlit_app.py not found!")
         sys.exit(1)
     
-    # Set up signal handler for graceful shutdown
+    # Set up signal handlers for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    print("🔧 Starting servers...")
-    print("📝 Press Ctrl+C to stop both servers")
+    print("🔧 Starting production servers...")
+    print("🌐 Frontend: http://0.0.0.0:8501 (Streamlit UI)")
+    print("🔌 Backend: http://0.0.0.0:8000 (FastAPI)")
     print("-" * 50)
     
     # Start FastAPI in a separate thread
@@ -120,14 +127,14 @@ def main():
     streamlit_thread = threading.Thread(target=run_streamlit, daemon=True)
     streamlit_thread.start()
     
-    # Wait a bit more for Streamlit to start
-    time.sleep(5)
+    # Wait for Streamlit to start
+    time.sleep(8)
     
     print("\n" + "=" * 50)
     print("✅ Both servers are running!")
-    print("🌐 API Documentation: http://localhost:8000/docs")
-    print("🎨 Streamlit UI: http://localhost:8501")
-    print("📝 Press Ctrl+C to stop")
+    print("🎨 Primary UI: http://0.0.0.0:8501 (User Interface)")
+    print("📖 API Docs: http://0.0.0.0:8000/docs (Developer Interface)")
+    print("💾 Health Check: http://0.0.0.0:8000/health")
     print("=" * 50)
     
     # Keep the main thread alive
@@ -137,6 +144,7 @@ def main():
             # Check if processes are still alive
             for process in processes[:]:  # Create a copy to iterate
                 if process.poll() is not None:  # Process has terminated
+                    print(f"⚠️ Process {process.pid} terminated unexpectedly")
                     processes.remove(process)
             
             if not processes:  # All processes have died

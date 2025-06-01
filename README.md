@@ -95,34 +95,59 @@ docker-compose up --build
 # Build the image
 docker build -t youtube-transcriber .
 
-# Run the container
-docker run -p 8000:8000 youtube-transcriber
+# Run the container (both services)
+docker run -p 8501:8501 -p 8000:8000 youtube-transcriber
 ```
 
 ### Production Deployment (Coolify)
 
 The application is ready for deployment on **Coolify** or any Docker-based platform:
 
-1. **Dockerfile**: Production-ready with all dependencies
-2. **Health checks**: Built-in health monitoring at `/health`
-3. **Port**: Runs on port 8000
-4. **Auto-cleanup**: Manages temporary files automatically
+1. **Dockerfile**: Production-ready with both frontend and backend
+2. **Primary Interface**: Streamlit UI on port 8501 (user-friendly)
+3. **API Backend**: FastAPI on port 8000 (developer access)
+4. **Health checks**: Built-in monitoring for Streamlit frontend
+5. **Auto-cleanup**: Manages temporary files automatically
 
-For Coolify deployment:
-- Repository: Push to GitHub/GitLab
-- Build: Dockerfile auto-detected
-- Port: 8000
-- Health check: `/health` endpoint available
+**For Coolify deployment:**
+- **Repository**: Push to GitHub/GitLab
+- **Build Pack**: Dockerfile (auto-detected)
+- **Primary Port**: `8501` (Streamlit UI)
+- **Port Mapping**: `8501:8501`
+- **Health Check**: `/_stcore/health` endpoint
+
+**Access Points:**
+- **🎨 Main Interface**: `https://your-domain.com` (Streamlit UI)
+- **📖 API Docs**: `https://your-domain.com:8000/docs` (if port 8000 exposed)
 
 ### Docker Features
 
-- ✅ **Multi-stage build optimized**
+- ✅ **Dual-service deployment** (Streamlit + FastAPI)
+- ✅ **User-friendly frontend** on port 8501
+- ✅ **Developer API access** on port 8000
 - ✅ **FFmpeg and system dependencies included**
 - ✅ **Pre-loaded Whisper models** (small, medium, large)
 - ✅ **Health checks configured**
 - ✅ **Automatic cleanup of temporary files**
-- ✅ **Production-ready with Uvicorn**
 - ✅ **Zero startup delay** - models ready instantly
+
+## Application Interfaces
+
+### 🎨 Streamlit Web UI (Primary - Port 8501)
+
+**User-friendly interface for end users:**
+- Interactive video URL input
+- Real-time transcription progress
+- Segment visualization with clickable timestamps
+- Model selection (small, medium, large)
+- Full transcript download
+- Video information display
+
+**Access:** `http://localhost:8501` (Development) or `https://your-domain.com` (Production)
+
+### 🔌 FastAPI Backend (Port 8000)
+
+**Developer API access:**
 
 ## API Endpoints
 

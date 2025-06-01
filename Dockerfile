@@ -27,12 +27,12 @@ RUN mkdir -p /tmp/youtube_audio
 # This adds ~1.1GB to the image but eliminates first-use delays
 RUN python -c "import whisper; print('Downloading small model...'); whisper.load_model('small'); print('Downloading medium model...'); whisper.load_model('medium'); print('Downloading large model...'); whisper.load_model('large'); print('All models downloaded successfully!')"
 
-# Expose port 8000
-EXPOSE 8000
+# Expose ports for both services
+EXPOSE 8000 8501
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+# Health check for Streamlit frontend
+HEALTHCHECK --interval=30s --timeout=30s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8501/_stcore/health || exit 1
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"] 
+# Run both FastAPI backend and Streamlit frontend
+CMD ["python", "run_app.py"] 
